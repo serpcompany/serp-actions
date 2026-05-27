@@ -19,10 +19,10 @@ Usage:
     [--dry-run]
 
 Runs one SERP Games GitHub skill install per skill listed in the manifest:
-  npx -y skills add https://github.com/serpgames/skills --skill 2048-game -y
+  npx -y skills add https://github.com/serpgames/skills --skill 2048-game-online-unblocked -y
 
 Runs one Smithery skill install per skill when mode is smithery or both:
-  npx -y skills add https://smithery.ai/skills/serpgames/2048-game
+  npx -y skills add https://smithery.ai/skills/serpgames/2048-game-online-unblocked
 EOF
 }
 
