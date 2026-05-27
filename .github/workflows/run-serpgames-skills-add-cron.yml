@@ -1,0 +1,71 @@
+name: Run SERP Games skills add loop
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs_per_cycle:
+        description: Number of `npx skills add ...` runs per cycle
+        required: false
+        default: "2"
+      seconds_between_cycles:
+        description: Seconds to wait before the next cycle
+        required: false
+        default: "5"
+      seconds_between_runs:
+        description: Seconds to wait between runs in the same cycle
+        required: false
+        default: "5"
+      seconds_after_cycle:
+        description: Seconds to wait after a cycle completes
+        required: false
+        default: "5"
+      max_cycles:
+        description: Maximum number of cycles to run
+        required: false
+        default: "5"
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: read
+
+env:
+  DEFAULT_RUNS_PER_CYCLE: "2"
+  DEFAULT_SECONDS_BETWEEN_CYCLES: "5"
+  DEFAULT_SECONDS_BETWEEN_RUNS: "5"
+  DEFAULT_SECONDS_AFTER_CYCLE: "5"
+  DEFAULT_MAX_CYCLES: "5"
+
+concurrency:
+  group: run-serpgames-skills-add-cron
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run script
+        env:
+          RUNS_PER_CYCLE: ${{ github.event_name == 'workflow_dispatch' && inputs.runs_per_cycle || env.DEFAULT_RUNS_PER_CYCLE }}
+          SECONDS_BETWEEN_CYCLES: ${{ github.event_name == 'workflow_dispatch' && inputs.seconds_between_cycles || env.DEFAULT_SECONDS_BETWEEN_CYCLES }}
+          SECONDS_BETWEEN_RUNS: ${{ github.event_name == 'workflow_dispatch' && inputs.seconds_between_runs || env.DEFAULT_SECONDS_BETWEEN_RUNS }}
+          SECONDS_AFTER_CYCLE: ${{ github.event_name == 'workflow_dispatch' && inputs.seconds_after_cycle || env.DEFAULT_SECONDS_AFTER_CYCLE }}
+          MAX_CYCLES: ${{ github.event_name == 'workflow_dispatch' && inputs.max_cycles || env.DEFAULT_MAX_CYCLES }}
+        run: |
+          chmod +x ./run-serpgames-skills-add-loop.sh
+          ./run-serpgames-skills-add-loop.sh \
+            --runs-per-cycle "$RUNS_PER_CYCLE" \
+            --seconds-between-cycles "$SECONDS_BETWEEN_CYCLES" \
+            --seconds-between-runs "$SECONDS_BETWEEN_RUNS" \
+            --seconds-after-cycle "$SECONDS_AFTER_CYCLE" \
+            --max-cycles "$MAX_CYCLES"
