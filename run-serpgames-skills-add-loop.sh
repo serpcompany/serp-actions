@@ -15,7 +15,7 @@ Usage:
     [--smithery-namespace NAMESPACE] \
     [--seconds-between-skill-adds N] \
     [--skills-repo-url URL] \
-    [--skills-manifest-url URL] \
+    [--skills-manifest-url URL_OR_GITHUB_CONTENTS_URL] \
     [--dry-run]
 
 Runs one SERP Games GitHub skill install per skill listed in the manifest:
@@ -54,8 +54,17 @@ run_command() {
 
 fetch_skill_names() {
   local manifest_json
+  local fetch_url="$skills_manifest_url"
 
-  manifest_json="$(curl -fsSL "$skills_manifest_url")"
+  if [[ "$fetch_url" == http://* || "$fetch_url" == https://* ]]; then
+    if [[ "$fetch_url" == *\?* ]]; then
+      fetch_url="${fetch_url}&_cache_bust=$(date +%s)"
+    else
+      fetch_url="${fetch_url}?_cache_bust=$(date +%s)"
+    fi
+  fi
+
+  manifest_json="$(curl -fsSL "$fetch_url")"
 
   python3 -c '
 import json
@@ -70,8 +79,10 @@ seen = set()
 for entry in data:
     if not isinstance(entry, dict):
         continue
-    skill = str(entry.get("skill") or "").strip()
+    skill = str(entry.get("skill") or entry.get("name") or "").strip()
     if not skill:
+        continue
+    if entry.get("type") and entry.get("type") != "dir":
         continue
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", skill):
         raise SystemExit(f"Invalid skill name in manifest: {skill}")
@@ -158,7 +169,7 @@ mode="both"
 smithery_namespace="serpgames"
 seconds_between_skill_adds="0"
 skills_repo_url="https://github.com/serpgames/skills"
-skills_manifest_url="https://raw.githubusercontent.com/serpgames/skills/main/docs/serpgames-live-games.json"
+skills_manifest_url="https://api.github.com/repos/serpgames/skills/contents/skills?ref=main"
 dry_run="0"
 
 while [[ $# -gt 0 ]]; do
