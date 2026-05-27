@@ -34,6 +34,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Validate sync script and config
+        run: |
+          node --check scripts/sync-source-repo-data-json.mjs
+          node scripts/sync-source-repo-data-json.mjs --self-test
+          node scripts/sync-source-repo-data-json.mjs --validate
+
       - name: Sync source repo data.json
         env:
           SERPCOMPANY_SOURCE_REPO_DATA_JSON_TOKEN: ${{ secrets.SERPCOMPANY_SOURCE_REPO_DATA_JSON_TOKEN }}
