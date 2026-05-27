@@ -75,15 +75,24 @@ data = json.load(sys.stdin)
 if not isinstance(data, list):
     raise SystemExit("Manifest must be a JSON array")
 
+def normalize_skill_name(skill):
+    keyword_suffix = "-online-unblocked"
+    if skill.endswith(keyword_suffix):
+        return skill
+    if skill.endswith("-game"):
+        return f"{skill}{keyword_suffix}"
+    return skill
+
 seen = set()
 for entry in data:
     if not isinstance(entry, dict):
         continue
-    skill = str(entry.get("skill") or entry.get("name") or "").strip()
+    skill = str(entry.get("skill") or entry.get("name") or entry.get("repo") or "").strip()
     if not skill:
         continue
     if entry.get("type") and entry.get("type") != "dir":
         continue
+    skill = normalize_skill_name(skill)
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", skill):
         raise SystemExit(f"Invalid skill name in manifest: {skill}")
     if skill in seen:
