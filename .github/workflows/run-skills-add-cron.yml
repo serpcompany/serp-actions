@@ -23,6 +23,14 @@ on:
         description: Maximum number of cycles to run
         required: false
         default: "5"
+      mode:
+        description: "Which source to install from: github, smithery, or both"
+        required: false
+        default: "both"
+      seconds_between_smithery_adds:
+        description: Seconds to wait between per-skill Smithery installs
+        required: false
+        default: "0"
   schedule:
     - cron: "2 * * * *"
 
@@ -35,6 +43,8 @@ env:
   DEFAULT_SECONDS_BETWEEN_RUNS: "5"
   DEFAULT_SECONDS_AFTER_CYCLE: "5"
   DEFAULT_MAX_CYCLES: "5"
+  DEFAULT_MODE: "both"
+  DEFAULT_SECONDS_BETWEEN_SMITHERY_ADDS: "0"
 
 concurrency:
   group: run-skills-add-cron
@@ -61,6 +71,8 @@ jobs:
           SECONDS_BETWEEN_RUNS: ${{ github.event_name == 'workflow_dispatch' && inputs.seconds_between_runs || env.DEFAULT_SECONDS_BETWEEN_RUNS }}
           SECONDS_AFTER_CYCLE: ${{ github.event_name == 'workflow_dispatch' && inputs.seconds_after_cycle || env.DEFAULT_SECONDS_AFTER_CYCLE }}
           MAX_CYCLES: ${{ github.event_name == 'workflow_dispatch' && inputs.max_cycles || env.DEFAULT_MAX_CYCLES }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || env.DEFAULT_MODE }}
+          SECONDS_BETWEEN_SMITHERY_ADDS: ${{ github.event_name == 'workflow_dispatch' && inputs.seconds_between_smithery_adds || env.DEFAULT_SECONDS_BETWEEN_SMITHERY_ADDS }}
         run: |
           chmod +x ./run-skills-add-loop.sh
           ./run-skills-add-loop.sh \
@@ -68,4 +80,6 @@ jobs:
             --seconds-between-cycles "$SECONDS_BETWEEN_CYCLES" \
             --seconds-between-runs "$SECONDS_BETWEEN_RUNS" \
             --seconds-after-cycle "$SECONDS_AFTER_CYCLE" \
-            --max-cycles "$MAX_CYCLES"
+            --max-cycles "$MAX_CYCLES" \
+            --mode "$MODE" \
+            --seconds-between-smithery-adds "$SECONDS_BETWEEN_SMITHERY_ADDS"
