@@ -17,6 +17,7 @@ DEFAULT_OWNERS = ("how-to-download-videos", "serpdownloaders", "serpxxx")
 DEFAULT_BASE_URL = "https://api.apify.com/v2"
 BLOCKING_ERROR_CODES = ("daily-publication-limit-exceeded", "store-terms-not-accepted")
 CADENCE_HOURS = 26
+SKIPPABLE_UPDATE_ERROR_CODES = ("tagged-build-required",)
 
 
 class ApifyAppError(RuntimeError):
@@ -185,7 +186,7 @@ def _valid_categories(value: Any) -> list[str] | None:
     return categories or None
 
 
-def _blocking_error_code(exc: ApifyHttpError) -> str | None:
+def _apify_error_code(exc: ApifyHttpError) -> str | None:
     response_text = exc.response_text or ""
     try:
         payload = json.loads(response_text)
@@ -204,7 +205,7 @@ def _blocking_error_code(exc: ApifyHttpError) -> str | None:
             candidates.append(api_error)
 
     haystack = " ".join(candidates).lower()
-    for code in BLOCKING_ERROR_CODES:
+    for code in (*BLOCKING_ERROR_CODES, *SKIPPABLE_UPDATE_ERROR_CODES):
         if code in haystack:
             return code
     return None
@@ -308,23 +309,28 @@ def run_rollout(
 
             payload = {"isPublic": True, "title": title, "categories": categories}
             entry = _result_entry(actor, payload=payload)
-            selected_count += 1
             owner_result["attempted"].append(entry)
             summary["attempted"].append(entry)
 
             if dry_run:
+                selected_count += 1
                 owner_result["dry_run"].append(entry)
                 continue
 
             try:
                 response = client.put(_actor_path(owner, actor.name), payload)
             except ApifyHttpError as exc:
-                blocking_code = _blocking_error_code(exc)
-                if blocking_code is not None:
-                    blocked = _result_entry(actor, reason=blocking_code, error=str(exc), phase="put")
+                error_code = _apify_error_code(exc)
+                if error_code in BLOCKING_ERROR_CODES:
+                    blocked = _result_entry(actor, reason=error_code, error=str(exc), phase="put")
                     owner_result["blocked"].append(blocked)
                     summary["blocked"].append(blocked)
                     break
+                if error_code in SKIPPABLE_UPDATE_ERROR_CODES:
+                    skipped = _result_entry(actor, reason=error_code, error=str(exc), phase="put")
+                    owner_result["skipped"].append(skipped)
+                    summary["skipped"].append(skipped)
+                    continue
                 failed = _result_entry(actor, error=str(exc), phase="put")
                 owner_result["failed"].append(failed)
                 summary["failed"].append(failed)
@@ -336,6 +342,7 @@ def run_rollout(
                 continue
 
             published = _result_entry(actor, response=_actor_data(response))
+            selected_count += 1
             owner_result["published"].append(published)
             summary["published"].append(published)
 
