@@ -2,19 +2,6 @@ name: apify-public-rollout
 
 on:
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: Fetch candidates and write summaries without updating Apify.
-        required: false
-        default: true
-        type: boolean
-      force:
-        description: Bypass the modulo-26 cadence gate for manual runs.
-        required: false
-        default: true
-        type: boolean
-  schedule:
-    - cron: "17 * * * *"
 
 permissions:
   contents: read
@@ -41,25 +28,13 @@ jobs:
           APIFY_API_TOKEN_HOW_TO_DOWNLOAD_VIDEOS: ${{ secrets.APIFY_API_TOKEN_HOW_TO_DOWNLOAD_VIDEOS }}
           APIFY_API_TOKEN_SERPDOWNLOADERS: ${{ secrets.APIFY_API_TOKEN_SERPDOWNLOADERS }}
           APIFY_API_TOKEN_SERPXXX: ${{ secrets.APIFY_API_TOKEN_SERPXXX }}
-          APIFY_PUBLIC_ROLLOUT_SLOT: "4"
         run: |
           mkdir -p apify-public-rollout-summary
-          args=(
-            --owners how-to-download-videos serpdownloaders serpxxx
-            --batch-size 5
-            --summary-dir apify-public-rollout-summary
-          )
-
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ "${{ inputs.force }}" = "true" ]; then
-              args+=(--force)
-            fi
-            if [ "${{ inputs.dry_run }}" = "true" ]; then
-              args+=(--dry-run)
-            fi
-          fi
-
-          python apify-public-rollout/rollout.py "${args[@]}"
+          python apify-public-rollout/rollout.py \
+            --owners how-to-download-videos serpdownloaders serpxxx \
+            --batch-size 5 \
+            --summary-dir apify-public-rollout-summary \
+            --force
 
       - name: Upload rollout summary
         if: always()
