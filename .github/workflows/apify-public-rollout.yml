@@ -1,0 +1,70 @@
+name: apify-public-rollout
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Fetch candidates and write summaries without updating Apify.
+        required: false
+        default: true
+        type: boolean
+      force:
+        description: Bypass the modulo-26 cadence gate for manual runs.
+        required: false
+        default: true
+        type: boolean
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apify-public-rollout
+  cancel-in-progress: false
+
+jobs:
+  rollout:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run rollout
+        env:
+          APIFY_API_TOKEN_HOW_TO_DOWNLOAD_VIDEOS: ${{ secrets.APIFY_API_TOKEN_HOW_TO_DOWNLOAD_VIDEOS }}
+          APIFY_API_TOKEN_SERPDOWNLOADERS: ${{ secrets.APIFY_API_TOKEN_SERPDOWNLOADERS }}
+          APIFY_API_TOKEN_SERPXXX: ${{ secrets.APIFY_API_TOKEN_SERPXXX }}
+          APIFY_PUBLIC_ROLLOUT_SLOT: "4"
+        run: |
+          mkdir -p apify-public-rollout-summary
+          args=(
+            --owners how-to-download-videos serpdownloaders serpxxx
+            --batch-size 5
+            --summary-dir apify-public-rollout-summary
+          )
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.force }}" = "true" ]; then
+              args+=(--force)
+            fi
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              args+=(--dry-run)
+            fi
+          fi
+
+          python apify-public-rollout/rollout.py "${args[@]}"
+
+      - name: Upload rollout summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apify-public-rollout-summary-${{ github.run_id }}
+          path: apify-public-rollout-summary/
+          if-no-files-found: warn
