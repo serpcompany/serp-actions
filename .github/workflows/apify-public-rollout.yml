@@ -36,6 +36,75 @@ jobs:
             --summary-dir apify-public-rollout-summary \
             --force
 
+      - name: Add rollout report
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = Path("apify-public-rollout-summary/summary.json")
+          github_summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+
+          def rows(items):
+              lines = []
+              for item in items:
+                  slug = item.get("slug", "unknown")
+                  reason = item.get("reason") or item.get("phase") or ""
+                  error = item.get("error")
+                  suffix = f" - {reason}" if reason else ""
+                  if isinstance(error, str) and error:
+                      clean_error = " ".join(error.split())
+                      suffix += f" - {clean_error[:240]}"
+                  lines.append(f"- `{slug}`{suffix}")
+              return lines
+
+          if not summary_path.exists():
+              github_summary.write_text("## Apify public rollout\n\nNo summary file was created.\n", encoding="utf-8")
+              raise SystemExit(0)
+
+          data = json.loads(summary_path.read_text(encoding="utf-8"))
+          published = data.get("published", [])
+          blocked = data.get("blocked", [])
+          failed = data.get("failed", [])
+          skipped = data.get("skipped", [])
+          owner_results = data.get("owner_results", {})
+
+          lines = [
+              "## Apify public rollout",
+              "",
+              f"- Published: **{len(published)}**",
+              f"- Blocked: **{len(blocked)}**",
+              f"- Errors: **{len(failed)}**",
+              f"- Skipped: **{len(skipped)}**",
+              "",
+              "### By owner",
+          ]
+          if isinstance(owner_results, dict):
+              for owner, result in owner_results.items():
+                  if not isinstance(result, dict):
+                      continue
+                  lines.append(
+                      f"- `{owner}`: "
+                      f"published {len(result.get('published', []))}, "
+                      f"blocked {len(result.get('blocked', []))}, "
+                      f"errors {len(result.get('failed', []))}, "
+                      f"skipped {len(result.get('skipped', []))}"
+                  )
+
+          lines.extend(["", "### Went public"])
+          lines.extend(rows(published) if published else ["- None"])
+
+          lines.extend(["", "### Blocked"])
+          lines.extend(rows(blocked) if blocked else ["- None"])
+
+          lines.extend(["", "### Errors"])
+          lines.extend(rows(failed) if failed else ["- None"])
+
+          github_summary.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
       - name: Upload rollout summary
         if: always()
         uses: actions/upload-artifact@v4
